@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Shared environment for backend learning notebooks"
 requires-python = ">=3.12"
 dependencies = [
+    "aio-pika>=10.0,<11",
+    "aiokafka>=0.14,<1",
     "anyio>=4.10,<5",
     "argon2-cffi>=25.1,<26",
     "fastapi>=0.121,<1",

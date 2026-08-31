@@ -74,9 +74,13 @@ Each notebook starts with a small example, ends with a production-shaped version
 - [Redis](05-cache-jobs/redis.ipynb) — serialization, expiration, deletion, and connection lifecycle.
 - [Invalidation](05-cache-jobs/invalidation.ipynb) — removing stale cached data after writes.
 - [Queue](05-cache-jobs/queue.ipynb) — job states from enqueue to completion.
+- [Kafka](05-cache-jobs/kafka.ipynb) — idempotent publishing, partition keys, manual offsets, and dead letters.
+- [RabbitMQ](05-cache-jobs/rabbitmq.ipynb) — durable topology, publisher confirms, prefetch, acknowledgements, and dead letters.
 - [Retries](05-cache-jobs/retries.ipynb) — retryable errors and exponential backoff.
 - [Idempotency](05-cache-jobs/idempotency.ipynb) — preventing duplicate side effects.
 - [Workers](05-cache-jobs/workers.ipynb) — bounded worker pools and clean shutdown.
+
+**Durability lab:** Run `make brokers-up`, follow the optional publish/recreate/consume cells in the Kafka or RabbitMQ notebook, then run `make brokers-down`. `make brokers-reset` deletes the saved messages.
 
 ### 06 — Reliability and testing
 
