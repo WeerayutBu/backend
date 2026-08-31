@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.domain import Task
-from app.errors import TaskNotFound
-from app.services import TaskService
+from app.application.errors import TaskNotFound
+from app.application.services import TaskService
+from app.domain.entities import Task
 
 pytestmark = pytest.mark.anyio
 

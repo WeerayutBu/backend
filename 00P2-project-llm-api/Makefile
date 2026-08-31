@@ -38,4 +38,3 @@ format:
 	$(UV) run ruff format .
 
 check: lint test
-

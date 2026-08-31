@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from app.service import ChatService, JobService
+from app.application.services import ChatService, JobService
 
 
 def get_chat_service(request: Request) -> ChatService:

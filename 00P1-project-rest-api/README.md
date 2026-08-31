@@ -4,18 +4,59 @@ A FastAPI task service for learning validation, authentication, Clean Architectu
 
 ## Architecture
 
-Routes translate HTTP requests into application calls. Services own the use cases and depend on repository interfaces; SQLAlchemy implements those interfaces. `main.py` connects the layers.
+Routes translate HTTP requests into application calls. Services own the use cases and depend on repository ports; SQLAlchemy implements those ports. The groups only organize the original flow by layer.
 
 ```mermaid
 flowchart LR
-    Client --> Router[FastAPI routes]
-    Router --> Service[Auth and task services]
-    Service --> Port[Repository ports]
-    Port -. wired to .-> Repository[SQLAlchemy repositories]
-    Repository --> PostgreSQL[(PostgreSQL)]
+    Client[Client]
+
+    subgraph Interface[Interface layer]
+        Router[FastAPI routes]
+    end
+
+    subgraph Application[Application layer]
+        Service[Auth and task services]
+        Port[Repository ports]
+    end
+
+    subgraph Infrastructure[Infrastructure layer]
+        Repository[SQLAlchemy repositories]
+        PostgreSQL[(PostgreSQL)]
+    end
+
+    Client --> Router --> Service
+    Service --> Port
+    Port -. wired to .-> Repository
+    Repository --> PostgreSQL
     Main[Composition root] -. builds .-> Service
     Main -. builds .-> Repository
 ```
+
+## Structure
+
+The project uses one shallow directory per Clean Architecture layer.
+
+```text
+app/
+├── domain/
+├── application/
+├── interface/
+├── infrastructure/
+├── config.py
+├── logging.py
+└── main.py
+```
+
+| Layer | Files |
+| --- | --- |
+| Domain | [Entities](app/domain/entities.py) |
+| Application | [Services](app/application/services.py), [ports](app/application/ports.py), [errors](app/application/errors.py) |
+| Interface | [Auth routes](app/interface/auth.py), [task routes](app/interface/tasks.py), [schemas](app/interface/schemas.py), [dependencies](app/interface/dependencies.py) |
+| Infrastructure | [Repositories](app/infrastructure/repositories.py), [database models](app/infrastructure/models.py), [database](app/infrastructure/database.py), [security](app/infrastructure/security.py) |
+| Composition | [Configuration](app/config.py), [logging](app/logging.py), [main](app/main.py) |
+| Support | [Migrations](migrations/), [tests](tests/), [Makefile](Makefile) |
+
+[Architecture tests](tests/test_architecture.py) prevent inner layers from importing frameworks or outer layers.
 
 ## Request flow
 

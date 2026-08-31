@@ -1,4 +1,4 @@
-"""Application errors translated into HTTP responses by the routers."""
+"""Application errors translated into HTTP responses by the interface."""
 
 
 class EmailAlreadyRegistered(Exception):

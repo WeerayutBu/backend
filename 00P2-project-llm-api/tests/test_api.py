@@ -4,10 +4,10 @@ from typing import Any
 import httpx
 import pytest
 
+from app.application.services import ChatService, JobService
 from app.config import Settings
-from app.domain import ChatCommand, ChatResult, JobResult
+from app.domain.models import ChatCommand, ChatResult, JobResult
 from app.main import create_app
-from app.service import ChatService, JobService
 
 
 class MemoryCache:

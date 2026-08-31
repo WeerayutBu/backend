@@ -5,9 +5,9 @@ from collections.abc import Mapping
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain import Task, User
-from app.models import Task as TaskRecord
-from app.models import User as UserRecord
+from app.domain.entities import Task, User
+from app.infrastructure.models import Task as TaskRecord
+from app.infrastructure.models import User as UserRecord
 
 
 def to_user(record: UserRecord) -> User:

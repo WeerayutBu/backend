@@ -6,7 +6,7 @@ import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import Settings
-from app.domain import ChatCommand, ChatResult
+from app.domain.models import ChatCommand, ChatResult
 
 
 def is_retryable(exception: BaseException) -> bool:

@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from pwdlib import PasswordHash
 
+from app.application.errors import InvalidToken
 from app.config import Settings
-from app.errors import InvalidToken
 
 
 class ArgonPasswordHasher:

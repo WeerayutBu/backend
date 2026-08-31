@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.dependencies import ChatServiceDep, JobServiceDep
-from app.schemas import ChatRequest, ChatResponse, JobCreated, JobStatus
+from app.interface.dependencies import ChatServiceDep, JobServiceDep
+from app.interface.schemas import ChatRequest, ChatResponse, JobCreated, JobStatus
 
 router = APIRouter()
 

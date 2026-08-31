@@ -6,9 +6,9 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import app.models  # noqa: F401
+import app.infrastructure.models  # noqa: F401
 from app.config import get_settings
-from app.database import Base
+from app.infrastructure.database import Base
 
 config = context.config
 if config.config_file_name:
@@ -50,4 +50,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     asyncio.run(run_migrations_online())
-

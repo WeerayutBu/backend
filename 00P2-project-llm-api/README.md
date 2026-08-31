@@ -12,33 +12,82 @@ A FastAPI service for direct LLM chat requests and queued background jobs, built
 
 ## Architecture
 
-Routes call application services, which depend only on cache, queue, and provider interfaces. Redis, ARQ, and the provider client implement those interfaces; `main.py` connects them. Queued requests wait until a worker can process them, up to **N concurrently** (`max_jobs`, default: 10).
+Routes call application services through the direct or queued path. The groups only organize the original flow by layer. Workers process up to **N jobs concurrently** (`max_jobs`, default: 10).
 
 ```mermaid
 flowchart LR
-    Client --> API[FastAPI]
-    API --> Router[API router]
+    Client[Client]
 
-    Router -->|POST /v1/chat| Service[Chat service]
-    Router -->|POST /v1/jobs| Jobs[Job service]
-    Jobs --> QueuePort[Queue port]
-    QueuePort -. wired to .-> QueueAdapter[ARQ adapter]
-    QueueAdapter --> Queue[(Redis queue)]
+    subgraph Interface[Interface layer]
+        API[FastAPI]
+        Router[API router]
+        Worker[Worker: N concurrent]
+    end
 
-    Queue --> Worker[Worker: N concurrent]
-    Worker --> Service
+    subgraph Application[Application layer]
+        Chat[Chat service]
+        Jobs[Job service]
+        CachePort[Cache port]
+        QueuePort[Queue port]
+        ProviderPort[Provider port]
+    end
 
-    Service --> CachePort[Cache port]
-    CachePort -. wired to .-> CacheAdapter[Redis adapter]
-    CacheAdapter --> Cache[(Redis cache)]
-    Service --> ProviderPort[Provider port]
-    ProviderPort -. wired to .-> Gateway[Provider client]
+    subgraph Infrastructure[Infrastructure layer]
+        CacheAdapter[Redis adapter]
+        QueueAdapter[ARQ adapter]
+        Gateway[Provider client]
+        Cache[(Redis cache)]
+        Queue[(Redis queue)]
+        OpenAI[OpenAI]
+        DeepInfra[DeepInfra]
+        vLLM[Local vLLM]
+        Ollama[Ollama]
+    end
 
-    Gateway -. choose one .-> OpenAI[OpenAI]
-    Gateway -. choose one .-> DeepInfra[DeepInfra]
-    Gateway -. choose one .-> vLLM[Local vLLM]
-    Gateway -. choose one .-> Ollama[Ollama]
+    Client --> API --> Router
+    Router -->|POST /v1/chat| Chat
+    Router -->|POST /v1/jobs| Jobs
+    Jobs --> QueuePort
+    QueuePort -. wired to .-> QueueAdapter
+    QueueAdapter --> Queue
+    Queue --> Worker --> Chat
+    Chat --> CachePort
+    CachePort -. wired to .-> CacheAdapter
+    CacheAdapter --> Cache
+    Chat --> ProviderPort
+    ProviderPort -. wired to .-> Gateway
+    Gateway -. choose one .-> OpenAI
+    Gateway -. choose one .-> DeepInfra
+    Gateway -. choose one .-> vLLM
+    Gateway -. choose one .-> Ollama
 ```
+
+## Structure
+
+The project uses one shallow directory per Clean Architecture layer.
+
+```text
+app/
+├── domain/
+├── application/
+├── interface/
+├── infrastructure/
+├── config.py
+├── logging.py
+├── main.py
+└── worker.py
+```
+
+| Layer | Files |
+| --- | --- |
+| Domain | [Chat and job data](app/domain/models.py) |
+| Application | [Services](app/application/services.py), [ports](app/application/ports.py) |
+| Interface | [API routes](app/interface/api.py), [schemas](app/interface/schemas.py), [dependencies](app/interface/dependencies.py), [worker handler](app/interface/worker.py) |
+| Infrastructure | [Redis cache](app/infrastructure/cache.py), [provider client](app/infrastructure/provider.py), [ARQ queue](app/infrastructure/queue.py) |
+| Composition | [Configuration](app/config.py), [logging](app/logging.py), [API](app/main.py), [worker](app/worker.py) |
+| Support | [Tests](tests/), [Makefile](Makefile) |
+
+[Architecture tests](tests/test_architecture.py) prevent inner layers from importing frameworks or outer layers. The worker handler stays in the interface layer; only its composition root knows Redis and the provider adapter.
 
 ## How it works
 

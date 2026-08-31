@@ -4,8 +4,8 @@ import hashlib
 import json
 from dataclasses import asdict, replace
 
-from app.domain import ChatCommand, ChatResult, JobResult
-from app.ports import Cache, JobQueue, LLMProvider
+from app.application.ports import Cache, JobQueue, LLMProvider
+from app.domain.models import ChatCommand, ChatResult, JobResult
 
 
 class ChatService:

@@ -2,10 +2,10 @@
 
 from fastapi import APIRouter, HTTPException, Response, status
 
-from app.dependencies import CurrentUser, TaskServiceDep
-from app.domain import Task
-from app.errors import InvalidTaskUpdate, TaskNotFound
-from app.schemas import TaskCreate, TaskResponse, TaskUpdate
+from app.application.errors import InvalidTaskUpdate, TaskNotFound
+from app.domain.entities import Task
+from app.interface.dependencies import CurrentUser, TaskServiceDep
+from app.interface.schemas import TaskCreate, TaskResponse, TaskUpdate
 
 router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
 

@@ -2,10 +2,10 @@
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.dependencies import AuthServiceDep
-from app.domain import User
-from app.errors import EmailAlreadyRegistered, InvalidCredentials
-from app.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.application.errors import EmailAlreadyRegistered, InvalidCredentials
+from app.domain.entities import User
+from app.interface.dependencies import AuthServiceDep
+from app.interface.schemas import LoginRequest, RegisterRequest, TokenResponse, UserResponse
 
 router = APIRouter(prefix="/v1/auth", tags=["authentication"])
 

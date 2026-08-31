@@ -2,15 +2,15 @@
 
 from collections.abc import Mapping
 
-from app.domain import Task, User
-from app.errors import (
+from app.application.errors import (
     EmailAlreadyRegistered,
     InvalidCredentials,
     InvalidTaskUpdate,
     InvalidToken,
     TaskNotFound,
 )
-from app.ports import PasswordHasher, TaskRepository, TokenService, UserRepository
+from app.application.ports import PasswordHasher, TaskRepository, TokenService, UserRepository
+from app.domain.entities import Task, User
 
 
 class AuthService:

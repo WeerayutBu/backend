@@ -10,14 +10,14 @@ from fastapi import FastAPI, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.application.services import AuthService, TaskService
 from app.config import Settings, get_settings
-from app.database import Base
+from app.infrastructure.database import Base
+from app.infrastructure.repositories import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
+from app.infrastructure.security import ArgonPasswordHasher, JWTTokenService
+from app.interface.auth import router as auth_router
+from app.interface.tasks import router as tasks_router
 from app.logging import configure_logging
-from app.repositories import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
-from app.routers.auth import router as auth_router
-from app.routers.tasks import router as tasks_router
-from app.security import ArgonPasswordHasher, JWTTokenService
-from app.services import AuthService, TaskService
 
 logger = logging.getLogger("app.http")
 

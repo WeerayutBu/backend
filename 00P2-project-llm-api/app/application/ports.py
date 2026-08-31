@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from app.domain import ChatCommand, ChatResult, JobResult
+from app.domain.models import ChatCommand, ChatResult, JobResult
 
 
 class Cache(Protocol):

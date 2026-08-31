@@ -10,14 +10,14 @@ from arq.connections import RedisSettings, create_pool
 from fastapi import FastAPI, Request, Response
 from redis.asyncio import Redis
 
-from app.api import router
-from app.cache import RedisCache
+from app.application.ports import JobQueue
+from app.application.services import ChatService, JobService
 from app.config import Settings, get_settings
+from app.infrastructure.cache import RedisCache
+from app.infrastructure.provider import OpenAICompatibleProvider
+from app.infrastructure.queue import ArqJobQueue
+from app.interface.api import router
 from app.logging import configure_logging
-from app.ports import JobQueue
-from app.provider import OpenAICompatibleProvider
-from app.queue import ArqJobQueue
-from app.service import ChatService, JobService
 
 logger = logging.getLogger("app.http")
 

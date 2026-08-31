@@ -3,7 +3,7 @@
 from arq.connections import ArqRedis
 from arq.jobs import Job
 
-from app.domain import ChatCommand, ChatResult, JobResult
+from app.domain.models import ChatCommand, ChatResult, JobResult
 
 
 class ArqJobQueue:

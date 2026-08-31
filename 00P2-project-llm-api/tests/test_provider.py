@@ -2,8 +2,8 @@ import httpx
 import pytest
 
 from app.config import Settings
-from app.domain import ChatCommand, Message
-from app.provider import OpenAICompatibleProvider
+from app.domain.models import ChatCommand, Message
+from app.infrastructure.provider import OpenAICompatibleProvider
 
 
 @pytest.mark.asyncio

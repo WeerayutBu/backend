@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Protocol
 
-from app.domain import Task, User
+from app.domain.entities import Task, User
 
 
 class UserRepository(Protocol):

@@ -5,7 +5,7 @@ from dataclasses import asdict
 
 from redis.asyncio import Redis
 
-from app.domain import ChatResult
+from app.domain.models import ChatResult
 
 
 class RedisCache:

@@ -1,17 +1,30 @@
 """FastAPI dependencies connecting HTTP requests to application services."""
 
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.database import get_session
-from app.domain import User
-from app.errors import InvalidToken
-from app.services import AuthService, TaskService
+from app.application.errors import InvalidToken
+from app.application.services import AuthService, TaskService
+from app.domain.entities import User
 
 bearer = HTTPBearer(auto_error=False)
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
