@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import jwt
+from anyio import to_thread
 from pwdlib import PasswordHash
 
 from app.application.errors import InvalidToken
@@ -13,11 +14,11 @@ class ArgonPasswordHasher:
     def __init__(self) -> None:
         self.password_hash = PasswordHash.recommended()
 
-    def hash(self, password: str) -> str:
-        return self.password_hash.hash(password)
+    async def hash(self, password: str) -> str:
+        return await to_thread.run_sync(self.password_hash.hash, password)
 
-    def verify(self, password: str, password_hash: str) -> bool:
-        return self.password_hash.verify(password, password_hash)
+    async def verify(self, password: str, password_hash: str) -> bool:
+        return await to_thread.run_sync(self.password_hash.verify, password, password_hash)
 
 
 class JWTTokenService:
@@ -30,13 +31,17 @@ class JWTTokenService:
         )
         return jwt.encode(
             {"sub": str(user_id), "exp": expires_at},
-            self.settings.jwt_secret,
+            self.settings.jwt_secret.get_secret_value(),
             "HS256",
         )
 
     def read_user_id(self, token: str) -> int:
         try:
-            payload = jwt.decode(token, self.settings.jwt_secret, algorithms=["HS256"])
+            payload = jwt.decode(
+                token,
+                self.settings.jwt_secret.get_secret_value(),
+                algorithms=["HS256"],
+            )
             return int(payload["sub"])
         except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as exc:
             raise InvalidToken from exc

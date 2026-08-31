@@ -16,16 +16,11 @@ bearer = HTTPBearer(auto_error=False)
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
-    async with session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    async with session_factory() as session, session.begin():
+        yield session
 
 
-Session = Annotated[AsyncSession, Depends(get_session)]
+Session = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 def get_auth_service(request: Request, session: Session) -> AuthService:

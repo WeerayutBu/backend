@@ -16,6 +16,7 @@ from app.infrastructure.database import Base
 from app.infrastructure.repositories import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
 from app.infrastructure.security import ArgonPasswordHasher, JWTTokenService
 from app.interface.auth import router as auth_router
+from app.interface.errors import register_error_handlers
 from app.interface.tasks import router as tasks_router
 from app.logging import configure_logging
 
@@ -48,16 +49,31 @@ def create_app(settings: Settings | None = None, *, create_schema: bool = False)
         if create_schema:
             async with engine.begin() as connection:
                 await connection.run_sync(Base.metadata.create_all)
-        yield
-        await engine.dispose()
+        try:
+            yield
+        finally:
+            await engine.dispose()
 
     app = FastAPI(title="REST API", version="0.1.0", lifespan=lifespan)
+    register_error_handlers(app)
 
     @app.middleware("http")
     async def log_request(request: Request, call_next) -> Response:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
         started = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.exception(
+                "request_failed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
+            raise
         response.headers["X-Request-ID"] = request_id
         logger.info(
             "request_completed",

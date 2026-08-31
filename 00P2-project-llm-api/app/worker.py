@@ -16,12 +16,20 @@ async def startup(ctx: dict) -> None:
     provider = OpenAICompatibleProvider(settings)
     ctx["redis"] = redis
     ctx["provider"] = provider
-    ctx["service"] = ChatService(provider, RedisCache(redis), settings.cache_ttl_seconds)
+    cache_namespace = f"{settings.provider_base_url}|{settings.default_model}"
+    ctx["service"] = ChatService(
+        provider,
+        RedisCache(redis),
+        settings.cache_ttl_seconds,
+        cache_namespace,
+    )
 
 
 async def shutdown(ctx: dict) -> None:
-    await ctx["provider"].close()
-    await ctx["redis"].aclose()
+    try:
+        await ctx["provider"].close()
+    finally:
+        await ctx["redis"].aclose()
 
 
 class WorkerSettings:

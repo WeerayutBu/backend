@@ -2,31 +2,49 @@
 
 import hashlib
 import json
+import logging
 from dataclasses import asdict, replace
 
+from app.application.errors import CacheUnavailable
 from app.application.ports import Cache, JobQueue, LLMProvider
 from app.domain.models import ChatCommand, ChatResult, JobResult
 
+logger = logging.getLogger(__name__)
+
 
 class ChatService:
-    def __init__(self, provider: LLMProvider, cache: Cache, cache_ttl_seconds: int) -> None:
+    def __init__(
+        self,
+        provider: LLMProvider,
+        cache: Cache,
+        cache_ttl_seconds: int,
+        cache_namespace: str = "default",
+    ) -> None:
         self.provider = provider
         self.cache = cache
         self.cache_ttl_seconds = cache_ttl_seconds
+        self.cache_namespace = cache_namespace
 
     async def chat(self, command: ChatCommand) -> ChatResult:
         key = self._cache_key(command)
-        cached = await self.cache.get(key)
+        try:
+            cached = await self.cache.get(key)
+        except CacheUnavailable:
+            logger.warning("cache_read_failed", exc_info=True)
+            cached = None
         if cached:
             return replace(cached, cached=True)
 
         response = await self.provider.chat(command)
-        await self.cache.set(key, response, self.cache_ttl_seconds)
+        try:
+            await self.cache.set(key, response, self.cache_ttl_seconds)
+        except CacheUnavailable:
+            logger.warning("cache_write_failed", exc_info=True)
         return response
 
-    @staticmethod
-    def _cache_key(command: ChatCommand) -> str:
-        body = json.dumps(asdict(command), sort_keys=True, separators=(",", ":"))
+    def _cache_key(self, command: ChatCommand) -> str:
+        payload = {"namespace": self.cache_namespace, "command": asdict(command)}
+        body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         return f"chat:{hashlib.sha256(body.encode()).hexdigest()}"
 
 

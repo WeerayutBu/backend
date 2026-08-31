@@ -17,6 +17,7 @@ from app.infrastructure.cache import RedisCache
 from app.infrastructure.provider import OpenAICompatibleProvider
 from app.infrastructure.queue import ArqJobQueue
 from app.interface.api import router
+from app.interface.errors import register_error_handlers
 from app.logging import configure_logging
 
 logger = logging.getLogger("app.http")
@@ -34,6 +35,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         configure_logging()
+        app.state.settings = settings
         if chat_service is not None and job_service is not None:
             app.state.chat_service = chat_service
             app.state.job_service = job_service
@@ -41,28 +43,53 @@ def create_app(
             return
 
         redis = Redis.from_url(settings.redis_url, decode_responses=True)
-        queue_redis = await create_pool(RedisSettings.from_dsn(settings.redis_url))
-        provider = OpenAICompatibleProvider(settings)
+        queue_redis = None
+        provider = None
+        try:
+            queue_redis = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+            provider = OpenAICompatibleProvider(settings)
+            cache_namespace = f"{settings.provider_base_url}|{settings.default_model}"
 
-        app.state.chat_service = ChatService(
-            provider=provider,
-            cache=RedisCache(redis),
-            cache_ttl_seconds=settings.cache_ttl_seconds,
-        )
-        queue: JobQueue = ArqJobQueue(queue_redis)
-        app.state.job_service = JobService(queue)
-        yield
-        await provider.close()
-        await redis.aclose()
-        await queue_redis.aclose()
+            app.state.chat_service = ChatService(
+                provider=provider,
+                cache=RedisCache(redis),
+                cache_ttl_seconds=settings.cache_ttl_seconds,
+                cache_namespace=cache_namespace,
+            )
+            queue: JobQueue = ArqJobQueue(queue_redis)
+            app.state.job_service = JobService(queue)
+            yield
+        finally:
+            try:
+                if provider is not None:
+                    await provider.close()
+            finally:
+                try:
+                    await redis.aclose()
+                finally:
+                    if queue_redis is not None:
+                        await queue_redis.aclose()
 
     app = FastAPI(title="LLM API", version="0.1.0", lifespan=lifespan)
+    register_error_handlers(app)
 
     @app.middleware("http")
     async def log_request(request: Request, call_next) -> Response:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
         started = time.perf_counter()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.exception(
+                "request_failed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
+            raise
         duration_ms = round((time.perf_counter() - started) * 1000, 2)
         response.headers["X-Request-ID"] = request_id
         logger.info(

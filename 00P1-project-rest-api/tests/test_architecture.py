@@ -45,7 +45,7 @@ def matches(module: str, prefixes: tuple[str, ...]) -> bool:
 def test_dependencies_do_not_cross_sideways_or_outward() -> None:
     violations = []
     for layer, forbidden in LAYER_RULES.items():
-        for path in (APP / layer).glob("*.py"):
+        for path in (APP / layer).rglob("*.py"):
             for module in imports(path):
                 if matches(module, forbidden):
                     violations.append(f"{path.relative_to(APP)} imports {module}")
@@ -55,7 +55,7 @@ def test_dependencies_do_not_cross_sideways_or_outward() -> None:
 def test_inner_layers_do_not_import_frameworks() -> None:
     violations = []
     for layer in ("domain", "application"):
-        for path in (APP / layer).glob("*.py"):
+        for path in (APP / layer).rglob("*.py"):
             for module in imports(path):
                 if module.split(".")[0] in FRAMEWORKS:
                     violations.append(f"{path.relative_to(APP)} imports {module}")

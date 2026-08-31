@@ -80,6 +80,10 @@ Each part has one role:
 
 Both projects also include [REST](00P1-project-rest-api/tests/test_architecture.py) and [LLM](00P2-project-llm-api/tests/test_architecture.py) architecture tests that reject outward layer imports and framework imports from inner layers.
 
+## Production boundaries
+
+The projects include validated configuration, application-level errors, transaction and resource cleanup, external-I/O timeouts, authentication, structured logs, and automated tests. Production deployment must still supply TLS, rate limiting, secret management, monitoring, and reliable PostgreSQL or Redis infrastructure.
+
 ## How to read the code
 
 Read from the center outward:

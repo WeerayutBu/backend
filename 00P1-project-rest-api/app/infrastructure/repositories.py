@@ -3,8 +3,10 @@
 from collections.abc import Mapping
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.errors import EmailAlreadyRegistered
 from app.domain.entities import Task, User
 from app.infrastructure.models import Task as TaskRecord
 from app.infrastructure.models import User as UserRecord
@@ -45,7 +47,10 @@ class SqlAlchemyUserRepository:
     async def add(self, email: str, password_hash: str) -> User:
         record = UserRecord(email=email, password_hash=password_hash)
         self.session.add(record)
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            raise EmailAlreadyRegistered from exc
         await self.session.refresh(record)
         return to_user(record)
 
@@ -54,11 +59,13 @@ class SqlAlchemyTaskRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_by_owner(self, owner_id: int) -> list[Task]:
+    async def list_by_owner(self, owner_id: int, limit: int, offset: int) -> list[Task]:
         records = await self.session.scalars(
             select(TaskRecord)
             .where(TaskRecord.owner_id == owner_id)
-            .order_by(TaskRecord.created_at.desc())
+            .order_by(TaskRecord.created_at.desc(), TaskRecord.id.desc())
+            .limit(limit)
+            .offset(offset)
         )
         return [to_task(record) for record in records]
 

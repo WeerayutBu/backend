@@ -51,7 +51,7 @@ app/
 | --- | --- |
 | Domain | [Entities](app/domain/entities.py) |
 | Application | [Services](app/application/services.py), [ports](app/application/ports.py), [errors](app/application/errors.py) |
-| Interface | [Auth routes](app/interface/auth.py), [task routes](app/interface/tasks.py), [schemas](app/interface/schemas.py), [dependencies](app/interface/dependencies.py) |
+| Interface | [Auth routes](app/interface/auth.py), [task routes](app/interface/tasks.py), [schemas](app/interface/schemas.py), [dependencies](app/interface/dependencies.py), [errors](app/interface/errors.py) |
 | Infrastructure | [Repositories](app/infrastructure/repositories.py), [database models](app/infrastructure/models.py), [database](app/infrastructure/database.py), [security](app/infrastructure/security.py) |
 | Composition | [Configuration](app/config.py), [logging](app/logging.py), [main](app/main.py) |
 | Support | [Migrations](migrations/), [tests](tests/), [Makefile](Makefile) |
@@ -84,6 +84,7 @@ sequenceDiagram
 
 ```bash
 cp .env.example .env
+# Replace REST_API_JWT_SECRET before starting the API.
 make sync
 make services
 make migrate
@@ -97,7 +98,7 @@ make run
 | `GET` | `/health` | Check whether the API is running. |
 | `POST` | `/v1/auth/register` | Register a user. |
 | `POST` | `/v1/auth/token` | Create an access token. |
-| `GET` | `/v1/tasks` | List the current user's tasks. |
+| `GET` | `/v1/tasks?limit=50&offset=0` | List the current user's tasks. |
 | `POST` | `/v1/tasks` | Create a task. |
 | `GET` | `/v1/tasks/{task_id}` | Retrieve a task. |
 | `PATCH` | `/v1/tasks/{task_id}` | Update a task. |
@@ -108,3 +109,10 @@ make run
 ```bash
 make check
 ```
+
+## Production checklist
+
+- Set `REST_API_ENVIRONMENT=production` and a random JWT secret of at least 32 characters.
+- Run `make migrate` before starting new application replicas.
+- Put the API behind TLS, request-size limits, and rate limiting.
+- Use managed PostgreSQL backups and export logs and metrics to your observability system.

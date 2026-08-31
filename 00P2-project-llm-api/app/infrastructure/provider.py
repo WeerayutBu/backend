@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
+from app.application.errors import ProviderUnavailable
 from app.config import Settings
 from app.domain.models import ChatCommand, ChatResult
 
@@ -29,20 +30,24 @@ class OpenAICompatibleProvider:
         await self.client.aclose()
 
     async def chat(self, command: ChatCommand) -> ChatResult:
-        response = await self._request(
-            {
-                "model": command.model or self.settings.default_model,
-                "messages": [
-                    {"role": message.role, "content": message.content}
-                    for message in command.messages
-                ],
-                "temperature": command.temperature,
-            }
-        )
-        return ChatResult(
-            content=response["choices"][0]["message"]["content"],
-            model=response.get("model", command.model or self.settings.default_model),
-        )
+        try:
+            response = await self._request(
+                {
+                    "model": command.model or self.settings.default_model,
+                    "messages": [
+                        {"role": message.role, "content": message.content}
+                        for message in command.messages
+                    ],
+                    "temperature": command.temperature,
+                }
+            )
+            content = response["choices"][0]["message"]["content"]
+            model = response.get("model", command.model or self.settings.default_model)
+            if not isinstance(content, str) or not isinstance(model, str):
+                raise ValueError("Provider response has invalid content or model")
+            return ChatResult(content=content, model=model)
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+            raise ProviderUnavailable from exc
 
     def _retry_decorator(self):
         return retry(
@@ -56,8 +61,9 @@ class OpenAICompatibleProvider:
         @self._retry_decorator()
         async def send() -> dict[str, Any]:
             headers = {}
-            if self.settings.provider_api_key:
-                headers["Authorization"] = f"Bearer {self.settings.provider_api_key}"
+            api_key = self.settings.provider_api_key.get_secret_value()
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
             response = await self.client.post("chat/completions", headers=headers, json=payload)
             response.raise_for_status()
             return response.json()

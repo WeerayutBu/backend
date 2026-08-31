@@ -70,6 +70,7 @@ async def test_register_login_and_reject_duplicate(client: httpx.AsyncClient) ->
         json={"email": "ada@example.com", "password": "password123"},
     )
     assert duplicate.status_code == 409
+    assert await register(client, "grace@example.com")
 
 
 async def test_tasks_require_authentication(client: httpx.AsyncClient) -> None:
@@ -104,3 +105,19 @@ async def test_task_crud(client: httpx.AsyncClient) -> None:
     assert deleted.status_code == 204
     missing = await client.get(f"/v1/tasks/{task_id}", headers=headers)
     assert missing.status_code == 404
+
+
+async def test_tasks_are_private_and_paginated(client: httpx.AsyncClient) -> None:
+    await register(client, "ada@example.com")
+    ada_headers = auth_headers(await token(client, "ada@example.com"))
+    created = await client.post("/v1/tasks", headers=ada_headers, json={"title": "Private"})
+    task_id = created.json()["id"]
+
+    await register(client, "grace@example.com")
+    grace_headers = auth_headers(await token(client, "grace@example.com"))
+
+    hidden = await client.get(f"/v1/tasks/{task_id}", headers=grace_headers)
+    limited = await client.get("/v1/tasks?limit=1&offset=0", headers=ada_headers)
+
+    assert hidden.status_code == 404
+    assert [task["id"] for task in limited.json()] == [task_id]

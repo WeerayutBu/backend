@@ -8,6 +8,7 @@ A FastAPI service for direct LLM chat requests and queued background jobs, built
 - OpenAI-compatible model provider
 - Async HTTP calls with timeouts and retries
 - Redis caching, queues, and workers
+- Optional service API-key authentication; required in production mode
 - Structured logging and integration tests
 
 ## Architecture
@@ -82,7 +83,7 @@ app/
 | --- | --- |
 | Domain | [Chat and job data](app/domain/models.py) |
 | Application | [Services](app/application/services.py), [ports](app/application/ports.py) |
-| Interface | [API routes](app/interface/api.py), [schemas](app/interface/schemas.py), [dependencies](app/interface/dependencies.py), [worker handler](app/interface/worker.py) |
+| Interface | [API routes](app/interface/api.py), [schemas](app/interface/schemas.py), [dependencies](app/interface/dependencies.py), [errors](app/interface/errors.py), [worker handler](app/interface/worker.py) |
 | Infrastructure | [Redis cache](app/infrastructure/cache.py), [provider client](app/infrastructure/provider.py), [ARQ queue](app/infrastructure/queue.py) |
 | Composition | [Configuration](app/config.py), [logging](app/logging.py), [API](app/main.py), [worker](app/worker.py) |
 | Support | [Tests](tests/), [Makefile](Makefile) |
@@ -92,6 +93,8 @@ app/
 ## How it works
 
 **Direct chat:** The API checks Redis first. A cache hit returns immediately; a cache miss calls the LLM provider, stores the response, and returns it to the client.
+
+If the cache is unavailable, direct chat continues through the provider. Provider and queue failures return stable `502` and `503` responses.
 
 **Background job:** The API queues the request and immediately returns a job ID. A worker runs the same cache-first chat service, stores the job result in Redis, and the client retrieves it through the job-status endpoint.
 
@@ -172,11 +175,22 @@ Example request:
 ```bash
 curl http://localhost:8000/v1/chat \
   -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your-service-key' \
   -d '{"messages":[{"role":"user","content":"Explain async I/O briefly."}]}'
 ```
+
+Omit `X-API-Key` when `LLM_API_SERVICE_API_KEY` is empty in local development.
 
 ## Test
 
 ```bash
 make check
 ```
+
+## Production checklist
+
+- Set `LLM_API_ENVIRONMENT=production` and a random `LLM_API_SERVICE_API_KEY` of at least 32 characters.
+- Keep the service API key separate from `LLM_API_PROVIDER_API_KEY`.
+- Run API and worker processes separately; scale workers when queue latency grows.
+- Use managed Redis persistence or high availability for queued jobs.
+- Put the API behind TLS, request-size limits, per-client rate limits, and monitoring.

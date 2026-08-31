@@ -1,6 +1,7 @@
 import httpx
 import pytest
 
+from app.application.errors import ProviderUnavailable
 from app.config import Settings
 from app.domain.models import ChatCommand, Message
 from app.infrastructure.provider import OpenAICompatibleProvider
@@ -70,3 +71,17 @@ async def test_provider_retries_temporary_failures() -> None:
 
     assert response.content == "recovered"
     assert calls == 2
+
+
+@pytest.mark.asyncio
+async def test_provider_rejects_malformed_response() -> None:
+    client = httpx.AsyncClient(
+        base_url="http://provider.test/v1/",
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={})),
+    )
+    provider = OpenAICompatibleProvider(Settings(), client=client)
+
+    with pytest.raises(ProviderUnavailable):
+        await provider.chat(ChatCommand(messages=(Message(role="user", content="hi"),)))
+
+    await provider.close()

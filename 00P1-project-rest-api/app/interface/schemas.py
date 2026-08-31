@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.application.services import MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -12,7 +14,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
 
 
 class UserResponse(BaseModel):
@@ -29,13 +31,13 @@ class TokenResponse(BaseModel):
 
 
 class TaskCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    description: str | None = None
+    title: str = Field(min_length=1, max_length=MAX_TITLE_LENGTH)
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    description: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=MAX_TITLE_LENGTH)
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)
     completed: bool | None = None
 
 

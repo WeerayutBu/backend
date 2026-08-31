@@ -22,7 +22,7 @@ make kernel
 
 Open a notebook and select **Python (backend-learning)**. Run all notebooks with `make test`.
 
-Each notebook starts with a small example and ends with a more modular version.
+Each notebook starts with a small example, ends with a production-shaped version, and links to its real project implementation where applicable.
 
 ## Topics
 
@@ -38,10 +38,10 @@ Each notebook starts with a small example and ends with a more modular version.
 
 - [HTTP](02-http-api/http.ipynb) — methods, status codes, headers, and responses.
 - [REST](02-http-api/rest.ipynb) — resource-oriented routes and CRUD behavior.
-- [Validation](02-http-api/validation.ipynb) — typed request and response models.
-- [Authentication](02-http-api/auth.ipynb) — bearer-token verification and identity.
+- [Validation](02-http-api/validation.ipynb) — normalization, field limits, and total request limits.
+- [Authentication](02-http-api/auth.ipynb) — Argon2, worker-thread hashing, JWTs, and API keys.
 - [Dependency injection](02-http-api/di.ipynb) — replaceable dependencies.
-- [API errors](02-http-api/api-errors.ipynb) — consistent domain-to-HTTP error mapping.
+- [API errors](02-http-api/api-errors.ipynb) — centralized domain-to-HTTP error mapping.
 - [Modular API](02-http-api/modular-api.ipynb) — router, service, repository, and app factory.
 
 ### 03 — Databases
@@ -50,7 +50,7 @@ Each notebook starts with a small example and ends with a more modular version.
 
 - [SQL](03-database/sql.ipynb) — parameters, joins, and read repositories.
 - [Schema](03-database/schema.ipynb) — constraints, relationships, and ownership.
-- [Transactions](03-database/transactions.ipynb) — atomic writes and rollback.
+- [Transactions](03-database/transactions.ipynb) — request-scoped commit and rollback.
 - [Indexes](03-database/indexes.ipynb) — composite indexes and query plans.
 - [Migrations](03-database/migrations.ipynb) — versioned schema changes.
 - [ORM](03-database/orm.ipynb) — SQLAlchemy models, sessions, and repositories.
@@ -70,7 +70,7 @@ Each notebook starts with a small example and ends with a more modular version.
 
 **Objective:** Reduce repeated work and process jobs safely with bounded concurrency.
 
-- [Cache aside](05-cache-jobs/cache.ipynb) — stable keys and replaceable cache adapters.
+- [Cache aside](05-cache-jobs/cache.ipynb) — namespaced keys and cache failure fallback.
 - [Redis](05-cache-jobs/redis.ipynb) — serialization, expiration, deletion, and connection lifecycle.
 - [Invalidation](05-cache-jobs/invalidation.ipynb) — removing stale cached data after writes.
 - [Queue](05-cache-jobs/queue.ipynb) — job states from enqueue to completion.

@@ -17,5 +17,9 @@ class TaskNotFound(Exception):
     pass
 
 
-class InvalidTaskUpdate(Exception):
+class InvalidInput(Exception):
+    pass
+
+
+class InvalidTaskUpdate(InvalidInput):
     pass

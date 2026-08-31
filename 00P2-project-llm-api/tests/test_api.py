@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 import pytest
 
+from app.application.errors import ProviderUnavailable
 from app.application.services import ChatService, JobService
 from app.config import Settings
 from app.domain.models import ChatCommand, ChatResult, JobResult
@@ -31,6 +32,11 @@ class FakeProvider:
     async def chat(self, command: ChatCommand) -> ChatResult:
         self.calls += 1
         return ChatResult(content="Hello from the model", model=command.model or "test-model")
+
+
+class FailingProvider:
+    async def chat(self, command: ChatCommand) -> ChatResult:
+        raise ProviderUnavailable
 
 
 class FakeQueue:
@@ -94,6 +100,17 @@ async def test_chat_validates_input(
     assert response.status_code == 422
 
 
+async def test_chat_rejects_oversized_messages(
+    client: tuple[httpx.AsyncClient, FakeProvider],
+) -> None:
+    test_client, _ = client
+    response = await test_client.post(
+        "/v1/chat",
+        json=payload(messages=[{"role": "user", "content": "x" * 20_001}]),
+    )
+    assert response.status_code == 422
+
+
 async def test_create_and_read_job(
     client: tuple[httpx.AsyncClient, FakeProvider],
 ) -> None:
@@ -105,3 +122,43 @@ async def test_create_and_read_job(
     assert created.json() == {"job_id": "job-123", "status": "queued"}
     assert status.status_code == 200
     assert status.json()["status"] == "complete"
+
+
+async def test_service_api_key_protects_v1_routes() -> None:
+    provider = FakeProvider()
+    app = create_app(
+        Settings(service_api_key="s" * 32),
+        chat_service=ChatService(provider, MemoryCache(), 60),
+        job_service=JobService(FakeQueue()),
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as test_client:
+        unauthorized = await test_client.post("/v1/chat", json=payload())
+        authorized = await test_client.post(
+            "/v1/chat",
+            headers={"X-API-Key": "s" * 32},
+            json=payload(),
+        )
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
+
+
+async def test_provider_failure_has_stable_error_response() -> None:
+    app = create_app(
+        Settings(),
+        chat_service=ChatService(FailingProvider(), MemoryCache(), 60),
+        job_service=JobService(FakeQueue()),
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as test_client:
+        response = await test_client.post("/v1/chat", json=payload())
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Model provider request failed"}

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.application.errors import TaskNotFound
+from app.application.errors import InvalidInput, TaskNotFound
 from app.application.services import TaskService
 from app.domain.entities import Task
 
@@ -22,8 +22,9 @@ class InMemoryTaskRepository:
     def __init__(self) -> None:
         self.tasks: dict[int, Task] = {}
 
-    async def list_by_owner(self, owner_id: int) -> list[Task]:
-        return [task for task in self.tasks.values() if task.owner_id == owner_id]
+    async def list_by_owner(self, owner_id: int, limit: int, offset: int) -> list[Task]:
+        owned = [task for task in self.tasks.values() if task.owner_id == owner_id]
+        return owned[offset : offset + limit]
 
     async def find_owned(self, task_id: int, owner_id: int) -> Task | None:
         task = self.tasks.get(task_id)
@@ -71,3 +72,10 @@ async def test_task_use_case_without_fastapi_or_sqlalchemy() -> None:
     assert updated.completed is True
     with pytest.raises(TaskNotFound):
         await service.get_task(created.id, 7)
+
+
+async def test_task_use_case_enforces_business_rules() -> None:
+    service = TaskService(InMemoryTaskRepository())
+
+    with pytest.raises(InvalidInput, match="Title is required"):
+        await service.create_task(7, "   ", None)
