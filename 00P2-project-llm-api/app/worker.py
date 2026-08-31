@@ -1,10 +1,12 @@
+"""Background entry point invoking the same ChatService application use case."""
+
 from arq.connections import RedisSettings
 from redis.asyncio import Redis
 
 from app.cache import RedisCache
 from app.config import get_settings
-from app.models import ChatRequest
 from app.provider import OpenAICompatibleProvider
+from app.schemas import ChatRequest
 from app.service import ChatService
 
 
@@ -23,8 +25,13 @@ async def shutdown(ctx: dict) -> None:
 
 
 async def generate(ctx: dict, payload: dict) -> dict:
-    response = await ctx["service"].chat(ChatRequest.model_validate(payload))
-    return response.model_dump(mode="json")
+    command = ChatRequest.model_validate(payload).to_command()
+    response = await ctx["service"].chat(command)
+    return {
+        "content": response.content,
+        "model": response.model,
+        "cached": response.cached,
+    }
 
 
 class WorkerSettings:
@@ -34,4 +41,3 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_tries = 3
     job_timeout = 120
-

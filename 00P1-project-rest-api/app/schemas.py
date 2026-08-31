@@ -1,3 +1,5 @@
+"""HTTP request and response models at the API boundary."""
+
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -45,4 +47,3 @@ class TaskResponse(BaseModel):
     description: str | None
     completed: bool
     created_at: datetime
-

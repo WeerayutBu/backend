@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from app.config import Settings
-from app.models import ChatRequest, Message
+from app.domain import ChatCommand, Message
 from app.provider import OpenAICompatibleProvider
 
 
@@ -30,7 +30,7 @@ async def test_provider_uses_versioned_chat_completions_path_without_empty_auth(
         client=client,
     )
 
-    response = await provider.chat(ChatRequest(messages=[Message(role="user", content="hi")]))
+    response = await provider.chat(ChatCommand(messages=(Message(role="user", content="hi"),)))
     await provider.close()
 
     assert response.content == "hello"
@@ -65,7 +65,7 @@ async def test_provider_retries_temporary_failures() -> None:
         client=client,
     )
 
-    response = await provider.chat(ChatRequest(messages=[Message(role="user", content="hi")]))
+    response = await provider.chat(ChatCommand(messages=(Message(role="user", content="hi"),)))
     await provider.close()
 
     assert response.content == "recovered"

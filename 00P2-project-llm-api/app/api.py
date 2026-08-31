@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException, Request, status
+"""HTTP adapter translating requests into application use-case calls."""
 
-from app.models import ChatRequest, ChatResponse, JobCreated, JobStatus
+from fastapi import APIRouter, HTTPException, status
+
+from app.dependencies import ChatServiceDep, JobServiceDep
+from app.schemas import ChatRequest, ChatResponse, JobCreated, JobStatus
 
 router = APIRouter()
 
@@ -11,20 +14,21 @@ async def health() -> dict[str, str]:
 
 
 @router.post("/v1/chat", response_model=ChatResponse)
-async def chat(body: ChatRequest, request: Request) -> ChatResponse:
+async def chat(body: ChatRequest, service: ChatServiceDep) -> ChatResponse:
     try:
-        return await request.app.state.chat_service.chat(body)
+        result = await service.chat(body.to_command())
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Model provider request failed") from exc
+    return ChatResponse.from_result(result)
 
 
 @router.post("/v1/jobs", response_model=JobCreated, status_code=status.HTTP_202_ACCEPTED)
-async def create_job(body: ChatRequest, request: Request) -> JobCreated:
-    job_id = await request.app.state.job_queue.enqueue(body)
+async def create_job(body: ChatRequest, service: JobServiceDep) -> JobCreated:
+    job_id = await service.create_job(body.to_command())
     return JobCreated(job_id=job_id)
 
 
 @router.get("/v1/jobs/{job_id}", response_model=JobStatus)
-async def get_job(job_id: str, request: Request) -> JobStatus:
-    return await request.app.state.job_queue.status(job_id)
-
+async def get_job(job_id: str, service: JobServiceDep) -> JobStatus:
+    result = await service.get_job(job_id)
+    return JobStatus.from_result(result)

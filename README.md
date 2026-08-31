@@ -9,6 +9,8 @@ Each project combines the most important techniques from the topics below.
 1. **[REST API](00P1-project-rest-api/)** — Task CRUD, validation, authentication, PostgreSQL transactions, logging, and integration tests.
 2. **[LLM API](00P2-project-llm-api/)** — Direct chat, queued jobs, Redis, concurrent workers, caching, retries, and provider calls.
 
+**Guide:** [Clean Architecture](clean-architecture.md) — understand routes, use cases, protocols, adapters, and dependency wiring in both projects.
+
 ## Setup
 
 Requires Python 3.12 or newer and [uv](https://docs.astral.sh/uv/).

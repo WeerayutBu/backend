@@ -1,3 +1,5 @@
+"""Environment-backed configuration loaded at the application boundary."""
+
 from functools import lru_cache
 
 from pydantic import Field

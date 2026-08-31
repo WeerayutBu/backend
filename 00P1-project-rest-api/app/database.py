@@ -1,3 +1,5 @@
+"""SQLAlchemy session and transaction lifecycle adapter."""
+
 from collections.abc import AsyncIterator
 
 from fastapi import Request
@@ -18,4 +20,3 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         except Exception:
             await session.rollback()
             raise
-

@@ -5,43 +5,46 @@ import httpx
 import pytest
 
 from app.config import Settings
+from app.domain import ChatCommand, ChatResult, JobResult
 from app.main import create_app
-from app.models import ChatRequest, ChatResponse, JobStatus
-from app.service import ChatService
+from app.service import ChatService, JobService
 
 
 class MemoryCache:
     def __init__(self) -> None:
-        self.values: dict[str, dict] = {}
+        self.values: dict[str, ChatResult] = {}
 
-    async def get(self, key: str) -> dict | None:
+    async def get(self, key: str) -> ChatResult | None:
         return self.values.get(key)
 
-    async def set(self, key: str, value: dict, ttl_seconds: int) -> None:
+    async def set(self, key: str, value: ChatResult, ttl_seconds: int) -> None:
         self.values[key] = value
+
+    async def delete(self, key: str) -> None:
+        self.values.pop(key, None)
 
 
 class FakeProvider:
     def __init__(self) -> None:
         self.calls = 0
 
-    async def chat(self, request: ChatRequest) -> ChatResponse:
+    async def chat(self, command: ChatCommand) -> ChatResult:
         self.calls += 1
-        return ChatResponse(content="Hello from the model", model=request.model or "test-model")
+        return ChatResult(content="Hello from the model", model=command.model or "test-model")
 
 
 class FakeQueue:
-    async def enqueue(self, request: ChatRequest) -> str:
+    async def enqueue(self, command: ChatCommand) -> str:
         return "job-123"
 
-    async def status(self, job_id: str) -> JobStatus:
-        return JobStatus(job_id=job_id, status="complete")
+    async def status(self, job_id: str) -> JobResult:
+        return JobResult(job_id=job_id, status="complete")
 
 
 def make_app() -> tuple[Any, FakeProvider]:
     provider = FakeProvider()
     service = ChatService(provider, MemoryCache(), cache_ttl_seconds=60)
-    app = create_app(Settings(), chat_service=service, job_queue=FakeQueue())  # type: ignore[arg-type]
+    app = create_app(Settings(), chat_service=service, job_service=JobService(FakeQueue()))
     return app, provider
 
 

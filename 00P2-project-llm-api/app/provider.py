@@ -1,10 +1,12 @@
-from typing import Any, Protocol
+"""OpenAI-compatible HTTP adapter implementing the LLM provider port."""
+
+from typing import Any
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import Settings
-from app.models import ChatRequest, ChatResponse
+from app.domain import ChatCommand, ChatResult
 
 
 def is_retryable(exception: BaseException) -> bool:
@@ -13,10 +15,6 @@ def is_retryable(exception: BaseException) -> bool:
     if isinstance(exception, httpx.HTTPStatusError):
         return exception.response.status_code == 429 or exception.response.status_code >= 500
     return False
-
-
-class LLMProvider(Protocol):
-    async def chat(self, request: ChatRequest) -> ChatResponse: ...
 
 
 class OpenAICompatibleProvider:
@@ -30,17 +28,20 @@ class OpenAICompatibleProvider:
     async def close(self) -> None:
         await self.client.aclose()
 
-    async def chat(self, request: ChatRequest) -> ChatResponse:
+    async def chat(self, command: ChatCommand) -> ChatResult:
         response = await self._request(
             {
-                "model": request.model or self.settings.default_model,
-                "messages": [message.model_dump() for message in request.messages],
-                "temperature": request.temperature,
+                "model": command.model or self.settings.default_model,
+                "messages": [
+                    {"role": message.role, "content": message.content}
+                    for message in command.messages
+                ],
+                "temperature": command.temperature,
             }
         )
-        return ChatResponse(
+        return ChatResult(
             content=response["choices"][0]["message"]["content"],
-            model=response.get("model", request.model or self.settings.default_model),
+            model=response.get("model", command.model or self.settings.default_model),
         )
 
     def _retry_decorator(self):

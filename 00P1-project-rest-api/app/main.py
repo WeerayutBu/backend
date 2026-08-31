@@ -1,3 +1,5 @@
+"""Composition root: configure FastAPI and connect infrastructure adapters."""
+
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -5,14 +7,17 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.config import Settings, get_settings
 from app.database import Base
 from app.logging import configure_logging
+from app.repositories import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
 from app.routers.auth import router as auth_router
 from app.routers.tasks import router as tasks_router
+from app.security import ArgonPasswordHasher, JWTTokenService
+from app.services import AuthService, TaskService
 
 logger = logging.getLogger("app.http")
 
@@ -24,12 +29,22 @@ def create_app(settings: Settings | None = None, *, create_schema: bool = False)
         engine_options["poolclass"] = StaticPool
     engine = create_async_engine(settings.database_url, **engine_options)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    passwords = ArgonPasswordHasher()
+    tokens = JWTTokenService(settings)
+
+    # Only the composition root knows which concrete adapters each use case receives.
+    def auth_service_factory(session: AsyncSession) -> AuthService:
+        return AuthService(SqlAlchemyUserRepository(session), passwords, tokens)
+
+    def task_service_factory(session: AsyncSession) -> TaskService:
+        return TaskService(SqlAlchemyTaskRepository(session))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         configure_logging()
-        app.state.settings = settings
         app.state.session_factory = session_factory
+        app.state.auth_service_factory = auth_service_factory
+        app.state.task_service_factory = task_service_factory
         if create_schema:
             async with engine.begin() as connection:
                 await connection.run_sync(Base.metadata.create_all)
@@ -66,4 +81,3 @@ def create_app(settings: Settings | None = None, *, create_schema: bool = False)
 
 
 app = create_app()
-

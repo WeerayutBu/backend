@@ -1,3 +1,5 @@
+"""SQLAlchemy persistence models belonging to the database adapter."""
+
 from datetime import datetime
 
 from sqlalchemy import ForeignKey, String, Text, func
@@ -24,4 +26,3 @@ class Task(Base):
     description: Mapped[str | None] = mapped_column(Text)
     completed: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-

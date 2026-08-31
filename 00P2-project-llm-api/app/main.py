@@ -1,3 +1,5 @@
+"""Composition root: connect FastAPI, Redis, ARQ, provider, and ChatService."""
+
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -12,9 +14,10 @@ from app.api import router
 from app.cache import RedisCache
 from app.config import Settings, get_settings
 from app.logging import configure_logging
+from app.ports import JobQueue
 from app.provider import OpenAICompatibleProvider
-from app.queue import ArqJobQueue, JobQueue
-from app.service import ChatService
+from app.queue import ArqJobQueue
+from app.service import ChatService, JobService
 
 logger = logging.getLogger("app.http")
 
@@ -22,16 +25,18 @@ logger = logging.getLogger("app.http")
 def create_app(
     settings: Settings | None = None,
     chat_service: ChatService | None = None,
-    job_queue: JobQueue | None = None,
+    job_service: JobService | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
+    if (chat_service is None) != (job_service is None):
+        raise ValueError("Provide both chat_service and job_service, or neither")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         configure_logging()
-        if chat_service is not None and job_queue is not None:
+        if chat_service is not None and job_service is not None:
             app.state.chat_service = chat_service
-            app.state.job_queue = job_queue
+            app.state.job_service = job_service
             yield
             return
 
@@ -44,7 +49,8 @@ def create_app(
             cache=RedisCache(redis),
             cache_ttl_seconds=settings.cache_ttl_seconds,
         )
-        app.state.job_queue = ArqJobQueue(queue_redis)
+        queue: JobQueue = ArqJobQueue(queue_redis)
+        app.state.job_service = JobService(queue)
         yield
         await provider.close()
         await redis.aclose()

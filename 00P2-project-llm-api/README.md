@@ -12,7 +12,7 @@ A FastAPI service for direct LLM chat requests and queued background jobs, built
 
 ## Architecture
 
-FastAPI validates the request, then the router selects the direct or queued path. Direct requests enter the chat service immediately; queued requests wait in Redis until the worker processes them, up to **N concurrently** (`max_jobs`, default: 10). The shared chat service checks the cache before calling the configured provider with timeouts and retries.
+Routes call application services, which depend only on cache, queue, and provider interfaces. Redis, ARQ, and the provider client implement those interfaces; `main.py` connects them. Queued requests wait until a worker can process them, up to **N concurrently** (`max_jobs`, default: 10).
 
 ```mermaid
 flowchart LR
@@ -20,14 +20,19 @@ flowchart LR
     API --> Router[API router]
 
     Router -->|POST /v1/chat| Service[Chat service]
-    Router -->|POST /v1/jobs| Queue[(Redis queue)]
+    Router -->|POST /v1/jobs| Jobs[Job service]
+    Jobs --> QueuePort[Queue port]
+    QueuePort -. wired to .-> QueueAdapter[ARQ adapter]
+    QueueAdapter --> Queue[(Redis queue)]
 
     Queue --> Worker[Worker: N concurrent]
     Worker --> Service
 
-    Service -->|check and store| Cache[(Redis cache)]
-    Service -->|cache miss| Gateway[Provider client]
-    Gateway -->|response| Service
+    Service --> CachePort[Cache port]
+    CachePort -. wired to .-> CacheAdapter[Redis adapter]
+    CacheAdapter --> Cache[(Redis cache)]
+    Service --> ProviderPort[Provider port]
+    ProviderPort -. wired to .-> Gateway[Provider client]
 
     Gateway -. choose one .-> OpenAI[OpenAI]
     Gateway -. choose one .-> DeepInfra[DeepInfra]
@@ -45,6 +50,7 @@ flowchart LR
 sequenceDiagram
     participant C as Client
     participant A as FastAPI router
+    participant J as Job service
     participant Q as Redis queue
     participant W as Worker
     participant S as Chat service
@@ -66,7 +72,8 @@ sequenceDiagram
         A-->>C: Chat response + request ID
     else Background job
         C->>A: POST /v1/jobs
-        A->>Q: Enqueue job
+        A->>J: Create job
+        J->>Q: Enqueue job
         A-->>C: Job ID
         Q->>W: Deliver job
         W->>S: Generate response
@@ -81,7 +88,8 @@ sequenceDiagram
         S-->>W: Chat response
         W->>Q: Store job result
         C->>A: GET /v1/jobs/{job_id}
-        A->>Q: Read status and result
+        A->>J: Get job
+        J->>Q: Read status and result
         A-->>C: Job status and result
     end
 ```

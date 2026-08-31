@@ -1,27 +1,23 @@
+"""Redis adapter implementing the cache port."""
+
 import json
-from typing import Protocol
+from dataclasses import asdict
 
 from redis.asyncio import Redis
 
-
-class Cache(Protocol):
-    async def get(self, key: str) -> dict | None: ...
-
-    async def set(self, key: str, value: dict, ttl_seconds: int) -> None: ...
-
-    async def delete(self, key: str) -> None: ...
+from app.domain import ChatResult
 
 
 class RedisCache:
     def __init__(self, redis: Redis) -> None:
         self.redis = redis
 
-    async def get(self, key: str) -> dict | None:
+    async def get(self, key: str) -> ChatResult | None:
         value = await self.redis.get(key)
-        return json.loads(value) if value else None
+        return ChatResult(**json.loads(value)) if value else None
 
-    async def set(self, key: str, value: dict, ttl_seconds: int) -> None:
-        await self.redis.set(key, json.dumps(value), ex=ttl_seconds)
+    async def set(self, key: str, value: ChatResult, ttl_seconds: int) -> None:
+        await self.redis.set(key, json.dumps(asdict(value)), ex=ttl_seconds)
 
     async def delete(self, key: str) -> None:
         await self.redis.delete(key)

@@ -1,3 +1,5 @@
+"""Structured-logging infrastructure configured by the application edge."""
+
 import json
 import logging
 from datetime import UTC, datetime

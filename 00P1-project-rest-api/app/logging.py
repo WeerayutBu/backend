@@ -1,3 +1,5 @@
+"""Structured-logging infrastructure configured by the application edge."""
+
 import json
 import logging
 from datetime import UTC, datetime
@@ -20,4 +22,3 @@ def configure_logging() -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
-

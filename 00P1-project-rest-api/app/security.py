@@ -1,27 +1,42 @@
+"""Password-hashing and JWT adapters implementing application ports."""
+
 from datetime import UTC, datetime, timedelta
 
 import jwt
 from pwdlib import PasswordHash
 
 from app.config import Settings
-
-password_hash = PasswordHash.recommended()
-
-
-def hash_password(password: str) -> str:
-    return password_hash.hash(password)
+from app.errors import InvalidToken
 
 
-def verify_password(password: str, hashed: str) -> bool:
-    return password_hash.verify(password, hashed)
+class ArgonPasswordHasher:
+    def __init__(self) -> None:
+        self.password_hash = PasswordHash.recommended()
+
+    def hash(self, password: str) -> str:
+        return self.password_hash.hash(password)
+
+    def verify(self, password: str, password_hash: str) -> bool:
+        return self.password_hash.verify(password, password_hash)
 
 
-def create_access_token(user_id: int, settings: Settings) -> str:
-    expires_at = datetime.now(UTC) + timedelta(minutes=settings.access_token_minutes)
-    return jwt.encode({"sub": str(user_id), "exp": expires_at}, settings.jwt_secret, "HS256")
+class JWTTokenService:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
 
+    def create(self, user_id: int) -> str:
+        expires_at = datetime.now(UTC) + timedelta(
+            minutes=self.settings.access_token_minutes
+        )
+        return jwt.encode(
+            {"sub": str(user_id), "exp": expires_at},
+            self.settings.jwt_secret,
+            "HS256",
+        )
 
-def decode_user_id(token: str, settings: Settings) -> int:
-    payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
-    return int(payload["sub"])
-
+    def read_user_id(self, token: str) -> int:
+        try:
+            payload = jwt.decode(token, self.settings.jwt_secret, algorithms=["HS256"])
+            return int(payload["sub"])
+        except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as exc:
+            raise InvalidToken from exc
