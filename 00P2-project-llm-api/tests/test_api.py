@@ -1,6 +1,8 @@
+from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 
 from app.config import Settings
 from app.main import create_app
@@ -36,11 +38,22 @@ class FakeQueue:
         return JobStatus(job_id=job_id, status="complete")
 
 
-def make_client() -> tuple[TestClient, FakeProvider]:
+def make_app() -> tuple[Any, FakeProvider]:
     provider = FakeProvider()
     service = ChatService(provider, MemoryCache(), cache_ttl_seconds=60)
     app = create_app(Settings(), chat_service=service, job_queue=FakeQueue())  # type: ignore[arg-type]
-    return TestClient(app), provider
+    return app, provider
+
+
+@pytest.fixture
+async def client() -> AsyncIterator[tuple[httpx.AsyncClient, FakeProvider]]:
+    app, provider = make_app()
+    transport = httpx.ASGITransport(app=app)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+    ) as test_client:
+        yield test_client, provider
 
 
 def payload(**overrides: Any) -> dict:
@@ -49,20 +62,20 @@ def payload(**overrides: Any) -> dict:
     return body
 
 
-def test_health() -> None:
-    client, _ = make_client()
-    with client:
-        response = client.get("/health")
+async def test_health(client: tuple[httpx.AsyncClient, FakeProvider]) -> None:
+    test_client, _ = client
+    response = await test_client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
     assert response.headers["X-Request-ID"]
 
 
-def test_chat_returns_and_caches_response() -> None:
-    client, provider = make_client()
-    with client:
-        first = client.post("/v1/chat", json=payload())
-        second = client.post("/v1/chat", json=payload())
+async def test_chat_returns_and_caches_response(
+    client: tuple[httpx.AsyncClient, FakeProvider],
+) -> None:
+    test_client, provider = client
+    first = await test_client.post("/v1/chat", json=payload())
+    second = await test_client.post("/v1/chat", json=payload())
 
     assert first.status_code == 200
     assert first.json()["cached"] is False
@@ -70,18 +83,20 @@ def test_chat_returns_and_caches_response() -> None:
     assert provider.calls == 1
 
 
-def test_chat_validates_input() -> None:
-    client, _ = make_client()
-    with client:
-        response = client.post("/v1/chat", json=payload(temperature=3))
+async def test_chat_validates_input(
+    client: tuple[httpx.AsyncClient, FakeProvider],
+) -> None:
+    test_client, _ = client
+    response = await test_client.post("/v1/chat", json=payload(temperature=3))
     assert response.status_code == 422
 
 
-def test_create_and_read_job() -> None:
-    client, _ = make_client()
-    with client:
-        created = client.post("/v1/jobs", json=payload())
-        status = client.get("/v1/jobs/job-123")
+async def test_create_and_read_job(
+    client: tuple[httpx.AsyncClient, FakeProvider],
+) -> None:
+    test_client, _ = client
+    created = await test_client.post("/v1/jobs", json=payload())
+    status = await test_client.get("/v1/jobs/job-123")
 
     assert created.status_code == 202
     assert created.json() == {"job_id": "job-123", "status": "queued"}

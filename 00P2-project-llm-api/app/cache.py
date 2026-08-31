@@ -9,6 +9,8 @@ class Cache(Protocol):
 
     async def set(self, key: str, value: dict, ttl_seconds: int) -> None: ...
 
+    async def delete(self, key: str) -> None: ...
+
 
 class RedisCache:
     def __init__(self, redis: Redis) -> None:
@@ -21,3 +23,5 @@ class RedisCache:
     async def set(self, key: str, value: dict, ttl_seconds: int) -> None:
         await self.redis.set(key, json.dumps(value), ex=ttl_seconds)
 
+    async def delete(self, key: str) -> None:
+        await self.redis.delete(key)
